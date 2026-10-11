@@ -1,6 +1,7 @@
 # coding: utf-8
-import sys
-sys.path.append('..')
+import sys, os
+# sys.path.append('..')     # 相对路径是相对于“当前工作目录”， 而不是相对于“当前脚本文件所在的目录”
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) # 直接添加绝对路径
 import os
 import numpy
 
@@ -20,8 +21,15 @@ def _update_vocab(txt):
 
 
 def load_data(file_name='addition.txt', seed=1984):
-    file_path = os.path.dirname(os.path.abspath(__file__)) + '/' + file_name
-
+    """
+    读入指定的文本文件，并将文本转换为字符 ID，返回训练数据与测试数据
+    :param file_name: 指定的文本文件
+    :param seed: 随机数种子，用来打乱数据，分割训练数据与测试数据
+    """
+    # 推荐写法 (记得处理好文件路径问题)
+    file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), file_name)
+    # file_path = os.path.dirname(os.path.abspath(__file__)) + '/' + file_name
+    
     if not os.path.exists(file_path):
         print('No file: %s' % file_name)
         return None
@@ -40,8 +48,8 @@ def load_data(file_name='addition.txt', seed=1984):
         _update_vocab(a)
 
     # create numpy array
-    x = numpy.zeros((len(questions), len(questions[0])), dtype=numpy.int)
-    t = numpy.zeros((len(questions), len(answers[0])), dtype=numpy.int)
+    x = numpy.zeros((len(questions), len(questions[0])), dtype=numpy.int64) # numpy.int ： 存在版本兼容问题
+    t = numpy.zeros((len(questions), len(answers[0])), dtype=numpy.int64)
 
     for i, sentence in enumerate(questions):
         x[i] = [char_to_id[c] for c in list(sentence)]
@@ -65,4 +73,7 @@ def load_data(file_name='addition.txt', seed=1984):
 
 
 def get_vocab():
+    """
+    返回字符与 ID 的映射字典
+    """
     return char_to_id, id_to_char

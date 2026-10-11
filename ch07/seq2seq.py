@@ -1,10 +1,12 @@
 # coding: utf-8
-import sys
-sys.path.append('..')
+import sys, os
+# sys.path.append('..')     # 相对路径是相对于“当前工作目录”， 而不是相对于“当前脚本文件所在的目录”
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) # 直接添加绝对路径
 from common.time_layers import *
 from common.base_model import BaseModel
 
 
+# 编码器类：
 class Encoder:
     def __init__(self, vocab_size, wordvec_size, hidden_size):
         V, D, H = vocab_size, wordvec_size, hidden_size
@@ -26,7 +28,7 @@ class Encoder:
         xs = self.embed.forward(xs)
         hs = self.lstm.forward(xs)
         self.hs = hs
-        return hs[:, -1, :]
+        return hs[:, -1, :]     # 传向解码器的固定长度向量 h 
 
     def backward(self, dh):
         dhs = np.zeros_like(self.hs)
@@ -37,6 +39,7 @@ class Encoder:
         return dout
 
 
+# 解码器类：
 class Decoder:
     def __init__(self, vocab_size, wordvec_size, hidden_size):
         V, D, H = vocab_size, wordvec_size, hidden_size
@@ -90,6 +93,7 @@ class Decoder:
         return sampled
 
 
+# 组成 seq2seq 模型类：
 class Seq2seq(BaseModel):
     def __init__(self, vocab_size, wordvec_size, hidden_size):
         V, D, H = vocab_size, wordvec_size, hidden_size
@@ -100,15 +104,33 @@ class Seq2seq(BaseModel):
         self.params = self.encoder.params + self.decoder.params
         self.grads = self.encoder.grads + self.decoder.grads
 
-    def forward(self, xs, ts):
+    def forward(self, xs, ts): # type:ignore
+        # https://chat.deepseek.com/a/chat/s/bdca704e-28be-4858-9129-cc85e50a70ed
+
+        # 直觉上理解： 在解码器中，上一个时间步的输出预测结果，要作为下一个时间步的输入。 (自回归的生成方式)
+        # 但在训练过程中，可以采用另一种常见技术： Teacher Forcing (教师强制) 来实现并行计算。
+        # 假设 ts(目标序列) 是 <start> A B C <END>
+        # 则 decoder_xs(解码器输入) ： <START> A B C (去掉最后一个字符)
+        #    decoder_ts(解码器目标) ： A B C <END> (去掉第一个字符)
+        # 在时间步上对齐：
+        # 时间步1： 输入 <START>，目标 A
+        # 时间步2： 输入 A，目标 B
+        # 时间步3： 输入 B，目标 C
+        # 时间步4： 输入 C，目标 <END>
+        # 如果，严格按照“上一个时间的输出预测结果，作为当前时间步的输入”，则模型必须一个词一个词地计算(串行)，算完第1个，再算第2个；
+        # 使用 Teacher Forcing 后，无论序列多长，decoder_xs 在训练前已知，整个序列可以一次性输入进 RNN，并行计算所有时间步的 Loss
+
+        # 再来解释 Autoregressive(自回归生成)：
+        # 该模型，通常出现在推理（测试）阶段；
+        # 在推理阶段，没有真实的 decoder_ts（正是我们需要预测的东西），所以代码逻辑就会变成自回归生成模式
         decoder_xs, decoder_ts = ts[:, :-1], ts[:, 1:]
 
         h = self.encoder.forward(xs)
         score = self.decoder.forward(decoder_xs, h)
-        loss = self.softmax.forward(score, decoder_ts)
+        loss = self.softmax.forward(score, decoder_ts)  # 根据 decoder_ts ，来计算 decoder_xs 预测结果的损失函数
         return loss
 
-    def backward(self, dout=1):
+    def backward(self, dout=1): # type:ignore
         dout = self.softmax.backward(dout)
         dh = self.decoder.backward(dout)
         dout = self.encoder.backward(dh)

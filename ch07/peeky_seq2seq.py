@@ -1,10 +1,12 @@
 # coding: utf-8
-import sys
-sys.path.append('..')
+import sys, os
+# sys.path.append('..')     # 相对路径是相对于“当前工作目录”， 而不是相对于“当前脚本文件所在的目录”
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) # 直接添加绝对路径
 from common.time_layers import *
 from seq2seq import Seq2seq, Encoder
 
 
+# 解码器结构的改进：
 class PeekyDecoder:
     def __init__(self, vocab_size, wordvec_size, hidden_size):
         V, D, H = vocab_size, wordvec_size, hidden_size

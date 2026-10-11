@@ -1,5 +1,4 @@
 # coding: utf-8
-# 权重文件丢失
 import sys, os
 # sys.path.append('..')     # 相对路径是相对于“当前工作目录”， 而不是相对于“当前脚本文件所在的目录”
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) # 直接添加绝对路径
@@ -14,9 +13,10 @@ corpus_size = len(corpus)
 
 
 model = BetterRnnlmGen()
-model.load_params('ch06/BetterRnnlm.pkl')   # 这里权重文件丢失！！！！！
+model.load_params('ch06/BetterRnnlm.pkl')   # 这里权重文件丢失！！！！！   已通过租用的 GPU 计算出来
 
 # 设定start字符和skip字符
+# 给该模型输入"you"，并生成后续的单词：
 start_word = 'you'
 start_id = word_to_id[start_word]
 skip_words = ['N', '<unk>', '$']
@@ -28,9 +28,9 @@ txt = txt.replace(' <eos>', '.\n')
 
 print(txt)
 
-
 model.reset_state()
 
+# 给该模型输入"the meaning of life is"，并生成后续的单词：
 start_words = 'the meaning of life is'
 start_ids = [word_to_id[w] for w in start_words.split(' ')]
 
